@@ -1,0 +1,50 @@
+[
+  {
+    "?column?": "CREATE TABLE analytics_activity_feed (occurred_at TIMESTAMP WITH TIME ZONE, event_type TEXT, identity_used TEXT, id UUID, traits JSONB, details TEXT, source TEXT, user_email TEXT);"
+  },
+  {
+    "?column?": "CREATE TABLE analytics_daily_traffic (day TIMESTAMP WITH TIME ZONE, total_views BIGINT, unique_visitors BIGINT);"
+  },
+  {
+    "?column?": "CREATE TABLE analytics_post_performance (page_views BIGINT, published_at TIMESTAMP WITH TIME ZONE, id UUID, last_viewed_at TIMESTAMP WITH TIME ZONE, slug TEXT, status TEXT, conversion_rate NUMERIC, signups BIGINT, comments BIGINT, unique_visitors BIGINT, title TEXT);"
+  },
+  {
+    "?column?": "CREATE TABLE analytics_top_pages (view_count BIGINT, page_path TEXT, unique_visitors BIGINT);"
+  },
+  {
+    "?column?": "CREATE TABLE comments (updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(), is_edited BOOLEAN DEFAULT false, id UUID NOT NULL DEFAULT gen_random_uuid(), post_id UUID NOT NULL, profile_id UUID NOT NULL, is_deleted BOOLEAN DEFAULT false, created_at TIMESTAMP WITH TIME ZONE DEFAULT now(), content TEXT NOT NULL, parent_comment_id UUID);"
+  },
+  {
+    "?column?": "CREATE TABLE customer_360 (profile_id UUID, profile_created_at TIMESTAMP WITH TIME ZONE, first_seen_at TIMESTAMP WITH TIME ZONE, last_seen_at TIMESTAMP WITH TIME ZONE, total_events BIGINT, total_page_views BIGINT, emails_sent BIGINT, emails_opened BIGINT, emails_clicked BIGINT, email TEXT, name TEXT, status TEXT);"
+  },
+  {
+    "?column?": "CREATE TABLE dashboard_content_leaderboard (comments BIGINT, slug TEXT, title TEXT, conversion_rate_pct NUMERIC, performance_score BIGINT, id UUID, published_at TIMESTAMP WITH TIME ZONE, views BIGINT, visitors BIGINT, signups BIGINT);"
+  },
+  {
+    "?column?": "CREATE TABLE dashboard_traffic_sources (source_category TEXT, conversion_rate_pct NUMERIC, conversions BIGINT, unique_visitors BIGINT, visit_count BIGINT);"
+  },
+  {
+    "?column?": "CREATE TABLE dashboard_weekly_pulse (new_subscribers BIGINT, views BIGINT, active_users BIGINT, views_change BIGINT, subs_change BIGINT, period TEXT);"
+  },
+  {
+    "?column?": "CREATE TABLE email_subscriptions (subscribed BOOLEAN, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), profile_id TEXT NOT NULL, source TEXT, unsubscribed_at TIMESTAMP WITH TIME ZONE, subscribed_at TIMESTAMP WITH TIME ZONE);"
+  },
+  {
+    "?column?": "CREATE TABLE identity_graph (identity_value TEXT NOT NULL, last_seen_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), first_seen_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), identity_type TEXT NOT NULL, id UUID NOT NULL DEFAULT gen_random_uuid(), profile_id UUID NOT NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now());"
+  },
+  {
+    "?column?": "CREATE TABLE marketing_events (identity_value TEXT NOT NULL, source TEXT NOT NULL, type TEXT NOT NULL, identity_type TEXT NOT NULL, traits JSONB, ingested_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), occurred_at TIMESTAMP WITH TIME ZONE NOT NULL, id UUID NOT NULL DEFAULT gen_random_uuid(), correlation_id TEXT, meta JSONB, raw JSONB);"
+  },
+  {
+    "?column?": "CREATE TABLE post_tags (tag_id UUID NOT NULL, post_id UUID NOT NULL);"
+  },
+  {
+    "?column?": "CREATE TABLE posts (content_mdx TEXT, summary TEXT, last_synced_at TIMESTAMP WITH TIME ZONE DEFAULT now(), updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(), created_at TIMESTAMP WITH TIME ZONE DEFAULT now(), tags ARRAY, notion_id TEXT NOT NULL, slug TEXT NOT NULL, title TEXT NOT NULL, featured_image TEXT, status TEXT NOT NULL DEFAULT 'Draft'::text, published_at TIMESTAMP WITH TIME ZONE, id UUID NOT NULL DEFAULT gen_random_uuid());"
+  },
+  {
+    "?column?": "CREATE TABLE profiles (created_at TIMESTAMP WITH TIME ZONE DEFAULT now(), status TEXT, anonymous_id TEXT, user_id UUID, updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(), id UUID NOT NULL DEFAULT gen_random_uuid(), email TEXT, source TEXT, first_name TEXT, name TEXT);"
+  },
+  {
+    "?column?": "CREATE TABLE tags (created_at TIMESTAMP WITH TIME ZONE DEFAULT now(), id UUID NOT NULL DEFAULT gen_random_uuid(), slug TEXT NOT NULL, name TEXT NOT NULL);"
+  }
+]

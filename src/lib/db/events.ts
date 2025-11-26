@@ -1,0 +1,97 @@
+import { SupabaseClient } from '@supabase/supabase-js';
+import type { ProcessedEvent } from '../../schemas';
+
+export interface ProcessedEventRecord {
+  id: string;
+  occurred_at: string;
+  ingested_at: string;
+  source: string;
+  type: string;
+  identity_type: string;
+  identity_value: string;
+  traits?: Record<string, unknown>;
+  raw?: Record<string, unknown>;
+  correlation_id?: string | null;
+  meta?: Record<string, unknown>;
+}
+
+/**
+ * Inserts a processed event into the events table
+ * @returns The inserted event record
+ */
+export async function insertEvent(
+  supabase: SupabaseClient,
+  event: ProcessedEvent,
+  options?: {
+    correlation_id?: string;
+    meta?: Record<string, unknown>;
+  }
+): Promise<ProcessedEventRecord> {
+  const { data, error } = await supabase
+    .from('events')
+    .insert({
+      occurred_at: event.timestamp,
+      source: event.source,
+      type: event.type,
+      identity_type: event.identity_type,
+      identity_value: event.identity_value,
+      traits: event.traits || {},
+      raw: event.raw || {},
+      correlation_id: options?.correlation_id || null,
+      meta: options?.meta || {},
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to insert event: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Gets events for a specific identity
+ */
+export async function getEventsByIdentity(
+  supabase: SupabaseClient,
+  identityType: string,
+  identityValue: string,
+  limit: number = 100
+): Promise<ProcessedEventRecord[]> {
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('identity_type', identityType)
+    .eq('identity_value', identityValue)
+    .order('occurred_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to get events by identity: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Gets events by type
+ */
+export async function getEventsByType(
+  supabase: SupabaseClient,
+  eventType: string,
+  limit: number = 100
+): Promise<ProcessedEventRecord[]> {
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('type', eventType)
+    .order('occurred_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to get events by type: ${error.message}`);
+  }
+
+  return data || [];
+}

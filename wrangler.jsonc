@@ -3,40 +3,70 @@
   "name": "lucascosta-tech-workers",
   "main": "src/index.ts",
   "compatibility_date": "2025-11-21",
+  "routes": [
+    {
+      "pattern": "api.lucascosta.tech",
+      "custom_domain": true
+    }
+  ],
   // 1. The Queue Binding (Buffer)
   "queues": {
     "producers": [
       {
         "queue": "event-ingestion-queue",
         "binding": "QUEUE"
+      },
+      {
+        "queue": "event-ingestion-dlq",
+        "binding": "DLQ"
+      },
+      {
+        "queue": "cms-sync-queue",
+        "binding": "CMS_QUEUE"
       }
     ],
     "consumers": [
       {
         "queue": "event-ingestion-queue",
-        "max_batch_size": 10,
-        "max_batch_timeout": 5
+        "max_retries": 3,
+        "dead_letter_queue": "event-ingestion-dlq"
+      },
+      {
+        "queue": "cms-sync-queue",
+        "max_retries": 3,
+        "max_batch_size": 1,
+        "max_concurrency": 1
       }
     ]
   },
-  // "compatibility_flags": [
-  //   "nodejs_compat"
-  // ],
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
-  // "kv_namespaces": [
-  //   {
-  //     "binding": "MY_KV_NAMESPACE",
-  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  //   }
-  // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
+  //queue consumer
+
+  // Cron Triggers
+  "triggers": {
+    "crons": [
+      // Daily summary at 8 PM UTC
+      "0 20 * * *",
+      // Update "Last 7 Days" rolling window every 15 minutes
+      "*/15 * * * *",
+      // Create weekly snapshot every Sunday at 11:55 PM UTC
+      "55 23 * * SUN"
+    ]
+  },
+
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "vars": {
+    "LOG_LEVEL": "info",
+    "RUNTIME_ENV": "prod",
+    "GHOST_API_URL": "https://lucascosta.tech"
+  },
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "lucascosta-assets"
+    }
+  ],
   // "d1_databases": [
   //   {
   //     "binding": "MY_DB",
@@ -51,4 +81,20 @@
   //   "enabled": true,
   //   "head_sampling_rate": 1
   // }
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  }
 }
+
