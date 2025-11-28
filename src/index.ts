@@ -2,13 +2,16 @@ import { Hono } from 'hono'
 import type { MessageBatch, ExecutionContext, ScheduledEvent } from '@cloudflare/workers-types'
 import { handleGhostWebhook, handleResend, handleWebEvent, handleNotionWebhook } from './handlers/webhooks'
 import { handleQueueConsumer, handleDLQConsumer } from './handlers/queue'
-import { processCmsSync, sendDailySummary } from './handlers/processors'
+import { processCmsSync } from './handlers/processors'
+import { executeCronJob } from './handlers/scheduled'
 import { Bindings, AppVariables } from './types'
 import { validateWebhookKey } from './middlewares/webhooks'
 import { corsMiddleware } from './middlewares/cors'
 import { consentMiddleware } from './middlewares/consent'
 import type { ProcessedEvent } from './schemas'
 import { handleServePixel } from './handlers/serve-pixel'
+import bannerRoutes from './handlers/webhooks/banner'
+import airtableWebhook from './handlers/webhooks/airtable'
 
 
 
@@ -34,6 +37,11 @@ app.post('/webhooks/resend', handleResend)
 app.post('/webhooks/notion', handleNotionWebhook)
 
 /**
+ * 4b. AIRTABLE WEBHOOK HANDLER (Syncs Airtable → KV)
+ */
+app.route('/webhooks/airtable', airtableWebhook)
+
+/**
  * 5. WEB EVENT HANDLER (Public - Browser)
  * Public endpoint for client-side tracking.
  * Handles CORS and Consent.
@@ -53,6 +61,12 @@ app.post('/events/ingest', handleWebEvent)
  * 7. SERVE PIXEL SCRIPT
  */
 app.get('/pixel.js', handleServePixel)
+
+/**
+ * 8. SITE BANNER API (Public GET, Protected POST/DELETE)
+ */
+app.use('/api/banner', corsMiddleware)
+app.route('/api/banner', bannerRoutes)
 
 export default {
   fetch: app.fetch,
@@ -86,44 +100,6 @@ export default {
     env: Bindings,
     ctx: ExecutionContext
   ) {
-    const now = new Date();
-    const isSunday = now.getUTCDay() === 0;
-    const isNearMidnight = now.getUTCHours() === 23 && now.getUTCMinutes() === 55;
-    const is8PM = now.getUTCHours() === 20 && now.getUTCMinutes() === 0;
-
-    if (is8PM) {
-      // Daily 8 PM UTC - Send daily summary
-      console.log('[CRON] Sending daily summary');
-      await sendDailySummary(env);
-    } else if (isNearMidnight && isSunday) {
-      // Sunday 11:55 PM - Create weekly snapshot (queries both rows, creates snapshot)
-      console.log('[CRON] Creating weekly snapshot');
-      await env.CMS_QUEUE.send({
-        action: 'export',
-        sourceKey: 'WEEKLY_PULSE',
-      });
-    } else {
-      // Every 15 min - Update all dashboard exports (no notifications)
-      console.log('[CRON] Updating dashboard exports');
-      
-      // 1. Update "Last 7 Days" rolling window (first row only)
-      await env.CMS_QUEUE.send({
-        action: 'export',
-        sourceKey: 'WEEKLY_PULSE',
-        batchSize: 1, // Only process first row ("Last 7 Days")
-      });
-      
-      // 2. Update traffic sources
-      await env.CMS_QUEUE.send({
-        action: 'export',
-        sourceKey: 'TRAFFIC_SOURCES',
-      });
-      
-      // 3. Update blog analytics (only posts with activity)
-      await env.CMS_QUEUE.send({
-        action: 'export',
-        sourceKey: 'BLOG_ANALYTICS',
-      });
-    }
+    await executeCronJob(event, env);
   },
 }

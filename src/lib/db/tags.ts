@@ -81,3 +81,68 @@ export async function reconcilePostTags(
     }
   }
 }
+
+/**
+ * Reconciles tags for a snippet
+ * 1. Ensures all tags exist in the `tags` table
+ * 2. Updates the `snippet_tags` junction table to match the provided list
+ */
+export async function reconcileSnippetTags(
+  supabase: SupabaseClient,
+  snippetId: string,
+  tagNames: string[]
+): Promise<void> {
+  if (!tagNames || tagNames.length === 0) {
+    // If no tags, remove all associations
+    await supabase.from('snippet_tags').delete().eq('snippet_id', snippetId);
+    return;
+  }
+
+  // 1. Prepare tags for upsert
+  const tagsToUpsert = tagNames.map(name => ({
+    name,
+    slug: slugify(name)
+  }));
+
+  // 2. Upsert tags and get their IDs
+  const { data: upsertedTags, error: upsertError } = await supabase
+    .from('tags')
+    .upsert(tagsToUpsert, { onConflict: 'name' })
+    .select('id, name');
+
+  if (upsertError) {
+    console.error('Error upserting tags:', upsertError);
+    throw new Error(`Failed to upsert tags: ${upsertError.message}`);
+  }
+
+  if (!upsertedTags) return;
+
+  // 3. Prepare snippet_tags associations
+  const tagIds = upsertedTags.map(t => t.id);
+  const snippetTagsToInsert = tagIds.map(tagId => ({
+    snippet_id: snippetId,
+    tag_id: tagId
+  }));
+
+  // 4. Replace existing associations
+  const { error: deleteError } = await supabase
+    .from('snippet_tags')
+    .delete()
+    .eq('snippet_id', snippetId);
+
+  if (deleteError) {
+    console.error('Error clearing snippet tags:', deleteError);
+    throw new Error(`Failed to clear snippet tags: ${deleteError.message}`);
+  }
+
+  if (snippetTagsToInsert.length > 0) {
+    const { error: insertError } = await supabase
+      .from('snippet_tags')
+      .insert(snippetTagsToInsert);
+
+    if (insertError) {
+      console.error('Error inserting snippet tags:', insertError);
+      throw new Error(`Failed to insert snippet tags: ${insertError.message}`);
+    }
+  }
+}

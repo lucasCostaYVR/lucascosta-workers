@@ -31,8 +31,9 @@ export async function handleNotionWebhook(c: Context<{ Bindings: Bindings }>) {
 
     // We only care about page updates for now
     if (entity.type === 'page') {
-      // Only sync pages from the BLOG_POSTS database (2b4bf95f69cb80db9a23cfc97b4ff4ea)
+      // Database IDs
       const blogPostsDatabaseId = '2b4bf95f69cb80db9a23cfc97b4ff4ea';
+      const snippetsDatabaseId = '2b7bf95f69cb80ec898edfb809d1c971';
       
       // Extract parent database ID - handle both regular databases and data sources
       const parent = (data as any)?.parent;
@@ -41,6 +42,7 @@ export async function handleNotionWebhook(c: Context<{ Bindings: Bindings }>) {
       // Normalize IDs (remove hyphens for comparison)
       const normalizedParent = parentDatabaseId?.replace(/-/g, '');
       const normalizedBlogDb = blogPostsDatabaseId.replace(/-/g, '');
+      const normalizedSnippetsDb = snippetsDatabaseId.replace(/-/g, '');
       
       if (normalizedParent === normalizedBlogDb) {
         await queue.importFromNotion('BLOG_POSTS', { 
@@ -48,13 +50,20 @@ export async function handleNotionWebhook(c: Context<{ Bindings: Bindings }>) {
           force: true 
         });
         
-        logger.info('Queued CMS import job', { pageId: entity.id, eventType: type, databaseId: parentDatabaseId });
+        logger.info('Queued CMS import job', { pageId: entity.id, eventType: type, source: 'BLOG_POSTS' });
+      } else if (normalizedParent === normalizedSnippetsDb) {
+        await queue.importFromNotion('CODE_SNIPPETS', { 
+          pageId: entity.id, 
+          force: true 
+        });
+        
+        logger.info('Queued CMS import job', { pageId: entity.id, eventType: type, source: 'CODE_SNIPPETS' });
       } else {
-        logger.info('Ignoring page update from non-blog database', { 
+        logger.info('Ignoring page update from non-tracked database', { 
           pageId: entity.id, 
           parentDatabaseId,
           parentType: parent?.type,
-          expectedDatabaseId: blogPostsDatabaseId 
+          expectedDatabases: { blogPostsDatabaseId, snippetsDatabaseId }
         });
       }
     }

@@ -49,6 +49,13 @@ export const DATA_SOURCES: DataSource[] = [
     supabaseView: 'dashboard_traffic_sources',
     syncDirection: ['to_notion'],
     description: 'Traffic source breakdown'
+  },
+  {
+    key: 'CODE_SNIPPETS',
+    notionDatabaseId: '2b7bf95f69cb80ec898edfb809d1c971',
+    supabaseTable: 'snippets',
+    syncDirection: ['from_notion'],
+    description: 'Code snippets from Notion'
   }
   // Add more data sources as needed
 ];

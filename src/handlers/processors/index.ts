@@ -1,5 +1,5 @@
 // Business logic processors - Pure functions that process events
-export { processPostLike, processPostUnlike } from './likes';
+export { processPostLike } from './post-likes';
 export { processComment } from './comments';
 export { processContact } from './contacts';
 export { processGhostSubscriber } from './subscriber-created';

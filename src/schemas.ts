@@ -72,7 +72,13 @@ export const EventTypeSchema = z.enum([
   'form.submit',
   // Post Engagement
   'post.liked',
-  'post.unliked'
+  'post.unliked',
+  // Snippet Engagement
+  'snippet.viewed',
+  'snippet.liked',
+  'snippet.unliked',
+  'snippet.copied',
+  'snippet.searched'
 ]);
 
 export const NotionWebhookSchema = z.object({

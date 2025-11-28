@@ -72,3 +72,26 @@ export function createTelegramClient(env: { TELEGRAM_BOT_TOKEN?: string; TELEGRA
   }
   return new TelegramClient(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID);
 }
+
+/**
+ * Simple helper to send Telegram notification
+ * Gracefully handles missing credentials
+ */
+export async function sendTelegramNotification(
+  botToken: string | undefined,
+  chatId: string | undefined,
+  message: string
+): Promise<void> {
+  if (!botToken || !chatId) {
+    console.warn('Telegram not configured, skipping notification');
+    return;
+  }
+
+  try {
+    const client = new TelegramClient(botToken, chatId);
+    await client.sendMessage(message);
+  } catch (error) {
+    console.error('Failed to send Telegram notification:', error);
+    // Don't throw - notification failures shouldn't break the main flow
+  }
+}

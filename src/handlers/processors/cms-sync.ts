@@ -4,7 +4,7 @@ import type { CmsJob } from '../../schemas';
 import { createLogger } from '../../lib/utils';
 import { getSupabaseClient } from '../../lib/clients/supabase';
 import { NotionClient } from '../../lib/clients';
-import { insertEvent, reconcilePostTags } from '../../lib/clients/supabase';
+import { insertEvent, reconcilePostTags, reconcileSnippetTags } from '../../lib/clients/supabase';
 import { getDataSource, resolveNotionDatabaseId } from '../../lib/utils';
 import { createTelegramClient } from '../../lib/clients';
 
@@ -47,6 +47,35 @@ async function handleImport(job: Extract<CmsJob, { action: 'import' }>, env: Bin
   const telegram = createTelegramClient(env);
   const databaseId = resolveNotionDatabaseId(source, env);
 
+  // Handle CODE_SNIPPETS separately
+  if (job.sourceKey === 'CODE_SNIPPETS') {
+    if (job.pageId) {
+      // Sync Single Snippet
+      await syncSingleSnippet(job.pageId, notion, supabase, logger, telegram);
+    } else {
+      // Sync All Snippets
+      const snippets = await notion.getAllSnippets(databaseId);
+      for (const snippet of snippets) {
+        await upsertSnippet(snippet, supabase);
+      }
+      logger.info('Synced all snippets', { count: snippets.length });
+      
+      // Send notification for bulk sync
+      if (telegram) {
+        try {
+          await telegram.notify('📝', 'Bulk Snippet Sync Complete', {
+            'Source': job.sourceKey,
+            'Snippets Synced': String(snippets.length)
+          });
+        } catch (error) {
+          logger.error('Failed to send Telegram notification', { error });
+        }
+      }
+    }
+    return;
+  }
+
+  // Handle BLOG_POSTS (existing logic)
   if (job.pageId) {
     // Sync Single Page (notification handled inside syncSinglePage)
     await syncSinglePage(job.pageId, notion, supabase, logger, telegram);
@@ -322,5 +351,123 @@ async function upsertPost(post: any, supabase: any) {
     // Reconcile Tags (Normalized Tables)
     if (post.tags && Array.isArray(post.tags)) {
       await reconcilePostTags(supabase, data.id, post.tags);
+    }
+}
+
+// ============================================================================
+// SNIPPET SYNC HELPERS
+// ============================================================================
+
+async function syncSingleSnippet(
+  pageId: string, 
+  notion: NotionClient, 
+  supabase: any, 
+  logger: any,
+  telegram: ReturnType<typeof createTelegramClient>
+): Promise<{ title: string; published: boolean }> {
+    // 1. Fetch Page Metadata & Content
+    const snippet = await notion.getSnippet(pageId);
+    
+    if (!snippet) {
+      logger.warn('Notion page not found or not a valid snippet', { pageId });
+      return { title: 'Unknown', published: false };
+    }
+
+    // Track previous status before update
+    const { data: existingSnippet } = await supabase
+      .from('snippets')
+      .select('status')
+      .eq('notion_id', snippet.id)
+      .single();
+    
+    const wasUnpublished = existingSnippet && existingSnippet.status !== 'published';
+    const isNowPublished = snippet.published;
+
+    // 2. Upsert into Supabase
+    await upsertSnippet(snippet, supabase);
+
+    logger.info('Successfully synced snippet', { 
+      slug: snippet.slug, 
+      title: snippet.title,
+      category: snippet.category
+    });
+
+    // 3. Send notification for publishing state changes
+    if (telegram) {
+      try {
+        if (wasUnpublished && isNowPublished) {
+          // Snippet was just published
+          await telegram.notify('✨', 'Snippet Published', {
+            'Title': snippet.title,
+            'Category': snippet.category,
+            'URL': `https://lucascosta.tech/snippets/${snippet.slug}`,
+            'Notion ID': snippet.id
+          });
+        } else if (!wasUnpublished && !isNowPublished) {
+          // Snippet was unpublished
+          await telegram.notify('🔒', 'Snippet Unpublished', {
+            'Title': snippet.title,
+            'Category': snippet.category,
+            'Slug': snippet.slug,
+            'Notion ID': snippet.id
+          });
+        }
+      } catch (error) {
+        logger.error('Failed to send Telegram notification', { error });
+      }
+    }
+
+    // 4. Telemetry
+    if (snippet.published) {
+        await insertEvent(supabase, {
+            source: 'notion',
+            type: 'content.published',
+            identity_type: 'user_id',
+            identity_value: 'system',
+            timestamp: new Date().toISOString(),
+            traits: {
+                slug: snippet.slug,
+                title: snippet.title,
+                category: snippet.category,
+                notionId: snippet.id,
+                contentType: 'snippet'
+            },
+            raw: { pageId }
+        });
+    }
+
+    // Rate Limit Buffer
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return { title: snippet.title, published: snippet.published };
+}
+
+async function upsertSnippet(snippet: any, supabase: any) {
+    const { data, error } = await supabase
+      .from('snippets')
+      .upsert({
+        notion_id: snippet.id,
+        slug: snippet.slug,
+        title: snippet.title,
+        description: snippet.description,
+        content_mdx: snippet.content,
+        category: snippet.category,
+        status: snippet.published ? 'published' : 'draft',
+        published_at: snippet.published && snippet.publishedAt ? snippet.publishedAt : null,
+        updated_at: new Date().toISOString(),
+        last_synced_at: new Date().toISOString()
+      }, {
+        onConflict: 'notion_id'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to upsert snippet: ${error.message}`);
+    }
+
+    // Reconcile Tags (Normalized Tables)
+    if (snippet.tags && Array.isArray(snippet.tags)) {
+      await reconcileSnippetTags(supabase, data.id, snippet.tags);
     }
 }

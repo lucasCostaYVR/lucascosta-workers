@@ -48,8 +48,8 @@ export async function handleWebEvent(c: Context<{ Bindings: Bindings, Variables:
       webEventProperties: webEvent.properties
     });
 
-    // Build the processed event
-    const processedEvent = buildWebProcessedEvent(webEvent, identity);
+    // Build the processed event with consent information
+    const processedEvent = buildWebProcessedEvent(webEvent, identity, hasConsent);
 
     // Queue for async processing
     await c.env.QUEUE.send(processedEvent);

@@ -313,7 +313,4 @@ SELECT
    COUNT(*) FILTER (WHERE e.type = 'newsletter.subscribed' AND e.occurred_at >= NOW() - INTERVAL '14 days' AND e.occurred_at < NOW() - INTERVAL '7 days')) AS subs_change
 FROM events e;
 
--- Indexes for Analytics Views
-CREATE INDEX IF NOT EXISTS idx_analytics_activity_feed_occurred ON analytics_activity_feed(occurred_at DESC);
-CREATE INDEX IF NOT EXISTS idx_analytics_daily_traffic_day ON analytics_daily_traffic(day DESC);
-CREATE INDEX IF NOT EXISTS idx_analytics_post_perf_published ON analytics_post_performance(published_at DESC);
+-- Note: Views don't need indexes - they use indexes from underlying tables (events, posts, profiles, etc.)

@@ -33,7 +33,7 @@ export async function corsMiddleware(
     c.header('Access-Control-Allow-Origin', origin);
     c.header('Access-Control-Allow-Credentials', 'true');
     c.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    c.header('Access-Control-Allow-Headers', 'Content-Type, X-Tracking-Consent');
+    c.header('Access-Control-Allow-Headers', 'Content-Type, X-Tracking-Consent, Cookie');
     c.header('Access-Control-Max-Age', '86400');
   }
 

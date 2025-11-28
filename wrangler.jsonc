@@ -1,100 +1,106 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "lucascosta-tech-workers",
-  "main": "src/index.ts",
-  "compatibility_date": "2025-11-21",
-  "routes": [
-    {
-      "pattern": "api.lucascosta.tech",
-      "custom_domain": true
-    }
-  ],
-  // 1. The Queue Binding (Buffer)
-  "queues": {
-    "producers": [
-      {
-        "queue": "event-ingestion-queue",
-        "binding": "QUEUE"
-      },
-      {
-        "queue": "event-ingestion-dlq",
-        "binding": "DLQ"
-      },
-      {
-        "queue": "cms-sync-queue",
-        "binding": "CMS_QUEUE"
-      }
-    ],
-    "consumers": [
-      {
-        "queue": "event-ingestion-queue",
-        "max_retries": 3,
-        "dead_letter_queue": "event-ingestion-dlq"
-      },
-      {
-        "queue": "cms-sync-queue",
-        "max_retries": 3,
-        "max_batch_size": 1,
-        "max_concurrency": 1
-      }
-    ]
-  },
-  //queue consumer
-
-  // Cron Triggers
-  "triggers": {
-    "crons": [
-      // Daily summary at 8 PM UTC
-      "0 20 * * *",
-      // Update "Last 7 Days" rolling window every 15 minutes
-      "*/15 * * * *",
-      // Create weekly snapshot every Sunday at 11:55 PM UTC
-      "55 23 * * SUN"
-    ]
-  },
-
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "vars": {
-    "LOG_LEVEL": "info",
-    "RUNTIME_ENV": "prod",
-    "GHOST_API_URL": "https://lucascosta.tech"
-  },
-  "r2_buckets": [
-    {
-      "binding": "ASSETS_BUCKET",
-      "bucket_name": "lucascosta-assets"
-    }
-  ],
-  // "d1_databases": [
-  //   {
-  //     "binding": "MY_DB",
-  //     "database_name": "my-database",
-  //     "database_id": ""
-  //   }
-  // ],
-  // "ai": {
-  //   "binding": "AI"
-  // },
-  // "observability": {
-  //   "enabled": true,
-  //   "head_sampling_rate": 1
-  // }
-  "observability": {
-    "enabled": false,
-    "head_sampling_rate": 1,
-    "logs": {
-      "enabled": true,
-      "head_sampling_rate": 1,
-      "persist": true,
-      "invocation_logs": true
-    },
-    "traces": {
-      "enabled": false,
-      "persist": true,
-      "head_sampling_rate": 1
-    }
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "lucascosta-tech-workers",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-11-21",
+	"routes": [
+		{
+			"pattern": "api.lucascosta.tech",
+			"custom_domain": true
+		}
+	],
+	// 1. The Queue Binding (Buffer)
+	"queues": {
+		"producers": [
+			{
+				"queue": "event-ingestion-queue",
+				"binding": "QUEUE"
+			},
+			{
+				"queue": "event-ingestion-dlq",
+				"binding": "DLQ"
+			},
+			{
+				"queue": "cms-sync-queue",
+				"binding": "CMS_QUEUE"
+			}
+		],
+		"consumers": [
+			{
+				"queue": "event-ingestion-queue",
+				"max_retries": 3,
+				"dead_letter_queue": "event-ingestion-dlq"
+			},
+			{
+				"queue": "cms-sync-queue",
+				"max_retries": 3,
+				"max_batch_size": 1,
+				"max_concurrency": 1
+			}
+		]
+	},
+	//queue consumer
+	// Cron Triggers
+	"triggers": {
+		"crons": [
+			// Daily summary at 8 PM UTC
+			"0 20 * * *",
+			// Update "Last 7 Days" rolling window every 15 minutes
+			"*/15 * * * *",
+			// Create weekly snapshot every Sunday at 11:55 PM UTC
+			"55 23 * * SUN",
+			// Refresh Airtable webhooks every 6 days at midnight UTC
+			"0 0 */6 * *"
+		]
+	},
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"vars": {
+		"LOG_LEVEL": "info",
+		"RUNTIME_ENV": "prod",
+		"GHOST_API_URL": "https://lucascosta.tech"
+	},
+	"r2_buckets": [
+		{
+			"binding": "ASSETS_BUCKET",
+			"bucket_name": "lucascosta-assets"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "SITE_SETTINGS",
+			"id": "4139e07840974f19a2abe7630236ab11",
+			"remote": true
+		}
+	],
+	// "d1_databases": [
+	//   {
+	//     "binding": "MY_DB",
+	//     "database_name": "my-database",
+	//     "database_id": ""
+	//   }
+	// ],
+	// "ai": {
+	//   "binding": "AI"
+	// },
+	// "observability": {
+	//   "enabled": true,
+	//   "head_sampling_rate": 1
+	// }
+	"observability": {
+		"enabled": false,
+		"head_sampling_rate": 1,
+		"logs": {
+			"enabled": true,
+			"head_sampling_rate": 1,
+			"persist": true,
+			"invocation_logs": true
+		},
+		"traces": {
+			"enabled": false,
+			"persist": true,
+			"head_sampling_rate": 1
+		}
+	}
 }
-

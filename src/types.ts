@@ -1,5 +1,6 @@
 import { Context } from 'hono'
 import { ProcessedEvent } from './schemas'
+import type { KVNamespace } from '@cloudflare/workers-types'
 
 export type CfQueue<T = unknown> = {
   send: (message: T) => Promise<void>;
@@ -25,6 +26,11 @@ export type Bindings = {
   ASSETS_BUCKET: R2Bucket;
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_CHAT_ID: string;
+  SITE_SETTINGS: KVNamespace;
+  ADMIN_SECRET: string;
+  AIRTABLE_API_KEY: string;
+  AIRTABLE_BASE_ID: string;
+  AIRTABLE_BANNERS_TABLE_ID: string;
 }
 
 export type AppVariables = {

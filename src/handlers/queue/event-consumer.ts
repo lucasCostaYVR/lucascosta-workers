@@ -11,9 +11,14 @@ import {
   processResendEvent,
   processContact,
   processComment,
-  processPostLike,
-  processPostUnlike
+  processPostLike
 } from '../processors'
+import {
+  processSnippetView,
+  processSnippetLike,
+  processSnippetCopy,
+  processSnippetSearch
+} from '../processors/snippet-analytics'
 
 /**
  * Main queue consumer handler
@@ -45,15 +50,24 @@ export async function handleQueueConsumer(
       if (event.type === 'contact.submitted') {
         // Handle contact form submissions (DB + Email Notification)
         await processContact(event, env);
-      } else if (event.type === 'post.liked') {
-        // Handle post likes
-        await processPostLike(event, env);
-      } else if (event.type === 'post.unliked') {
-        // Handle post unlikes
-        await processPostUnlike(event, env);
-      } else if (event.type.startsWith('comment.')) {
+      }  else if (event.type.startsWith('comment.')) {
         // Handle comment events (create, update, delete)
         await processComment(event, env);
+      } else if (event.type === 'post.liked' || event.type === 'post.unliked') {
+        // Handle post like/unlike events
+        await processPostLike(event, env);
+      } else if (event.type === 'snippet.liked' || event.type === 'snippet.unliked') {
+        // Handle snippet like/unlike events
+        await processSnippetLike(event, env);
+      } else if (event.type === 'snippet.copied') {
+        // Handle snippet copy events
+        await processSnippetCopy(event, env);
+      } else if (event.type === 'snippet.searched') {
+        // Handle snippet search events (telemetry + Telegram)
+        await processSnippetSearch(event, env);
+      } else if (event.type === 'snippet.viewed') {
+        // Handle snippet view events (telemetry only)
+        await processSnippetView(event, env);
       } else if (event.type === 'newsletter.subscribed') {
         // Handle newsletter subscriptions (DB + Resend Sync)
         await processNewsletterSubscription(event, env);

@@ -13,6 +13,18 @@ export interface NotionPost {
   featuredImage: string | null;
 }
 
+export interface NotionSnippet {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  content: string; // MDX
+  category: string;
+  published: boolean;
+  publishedAt: string | null;
+  tags: string[];
+}
+
 export class NotionClient {
   private client: Client;
   private n2m: NotionToMarkdown;
@@ -189,7 +201,8 @@ export class NotionClient {
     const title = props.Name.title[0].plain_text;
     const slug = props.Slug?.rich_text?.[0]?.plain_text || page.id;
     const published = props.Status?.status?.name === 'Published';
-    const publishedAt = props.PublishedDate?.date?.start || null;
+    // Support both "Published Date" (with space) and "PublishedDate" property names
+    const publishedAt = props['Published Date']?.date?.start || props.PublishedDate?.date?.start || null;
     const tags = props.Tags?.multi_select?.map((t: any) => t.name) || [];
     const summary = props.Summary?.rich_text?.[0]?.plain_text || null;
 
@@ -243,5 +256,60 @@ export class NotionClient {
     }
 
     return posts;
+  }
+
+  private async parseSnippet(page: any): Promise<NotionSnippet | null> {
+    if (!('properties' in page)) return null;
+      
+    const props = page.properties as any;
+    
+    // Skip pages without a Name (title)
+    if (!props.Name?.title?.[0]?.plain_text) {
+      return null;
+    }
+    
+    const title = props.Name.title[0].plain_text;
+    const slug = props.Slug?.rich_text?.[0]?.plain_text || page.id;
+    const published = props.Status?.status?.name === 'Published';
+    // Support both "Published Date" (with space) and "PublishedDate" property names
+    const publishedAt = props['Published Date']?.date?.start || props.PublishedDate?.date?.start || null;
+    const category = props.Category?.select?.name || 'Uncategorized';
+    const tags = props.Tags?.multi_select?.map((t: any) => t.name) || [];
+    const description = props.Description?.rich_text?.[0]?.plain_text || null;
+
+    const content = await this.pageToMdx(page.id);
+
+    return {
+      id: page.id,
+      slug,
+      title,
+      description,
+      content,
+      category,
+      published,
+      publishedAt,
+      tags
+    };
+  }
+
+  async getSnippet(pageId: string): Promise<NotionSnippet | null> {
+    const page = await this.getPage(pageId);
+    return this.parseSnippet(page);
+  }
+
+  async getAllSnippets(databaseId: string): Promise<NotionSnippet[]> {
+    // Don't filter by status - sync both drafts and published (same as posts)
+    const response = await (this.client.databases as any).query({
+      database_id: databaseId
+    });
+    
+    const snippets: NotionSnippet[] = [];
+    for (const page of response.results) {
+      const snippet = await this.parseSnippet(page);
+      if (snippet) {
+        snippets.push(snippet);
+      }
+    }
+    return snippets;
   }
 }

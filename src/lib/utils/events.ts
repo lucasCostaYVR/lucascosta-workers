@@ -6,11 +6,13 @@ import type { ResolvedIdentity } from './identity';
  * 
  * @param webEvent - The incoming web event payload
  * @param identity - The resolved identity information
+ * @param hasConsent - Whether user has granted tracking consent
  * @returns A properly formatted ProcessedEvent ready for queueing
  */
 export function buildWebProcessedEvent(
   webEvent: WebEvent,
-  identity: ResolvedIdentity
+  identity: ResolvedIdentity,
+  hasConsent: boolean = false
 ): ProcessedEvent {
   // Use provided timestamp or default to now
   const occurredAt = webEvent.timestamp 
@@ -38,6 +40,9 @@ export function buildWebProcessedEvent(
       ...webEvent.properties,
       ...webEvent.user,  // User fields should override everything else
       anonymousId: identity.anonymousId,
+      
+      // IMPORTANT: Store consent status for processors
+      hasConsent,
     },
     timestamp: occurredAt,
     raw: webEvent,

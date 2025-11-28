@@ -100,14 +100,19 @@ export async function processWebEvent(event: ProcessedEvent, env: Bindings): Pro
       });
     }
 
-    // 2. Insert event
-    await insertEvent(supabase, event);
-    logger.debug('Event inserted', { eventType: event.type });
+    // 2. Insert event for analytics
+    // WITHOUT consent: Stored anonymously (identity_value = null) for aggregated metrics
+    // WITH consent: Stored with profile linkage for personalization/journey tracking
+    const hasConsent = event.traits?.hasConsent as boolean | undefined;
+    const eventRecord = await insertEvent(supabase, event);
 
     logger.info('Successfully processed web event', {
       type: event.type,
       identity_type: event.identity_type,
       identity_value: event.identity_value,
+      hasConsent: hasConsent,
+      eventId: eventRecord?.id,
+      mode: hasConsent ? 'linked-to-profile' : 'anonymous-aggregated'
     });
   } catch (error) {
     logger.error('Failed to process web event', {

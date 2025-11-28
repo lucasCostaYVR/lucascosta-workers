@@ -43,6 +43,106 @@ All events sent from the frontend (Next.js) to the Workers backend follow a stan
 - **Identity Resolution**: Backend handles merging anonymous → identified users automatically
 - **Context is Required**: Always include `context.page` for conversion attribution
 
+## GDPR-Compliant Consent System
+
+### Consent Model
+
+We implement a **tiered consent approach** that balances user privacy with legitimate business needs:
+
+**WITHOUT Consent (default):**
+- ✅ Events stored anonymously (`identity_type` and `identity_value` = NULL)
+- ✅ Aggregated metrics collected (page views, like counts, etc.)
+- ✅ Functional features work (likes, copies saved to database)
+- ❌ NO profile linkage (can't build user journeys)
+- ❌ NO analytics notifications (no Telegram alerts)
+- ❌ NO personalization/recommendations
+
+**WITH Consent (user clicks "Accept"):**
+- ✅ Events stored with full profile linkage
+- ✅ User journey tracking enabled
+- ✅ Personalization and recommendations possible
+- ✅ Analytics notifications sent (Telegram alerts)
+- ✅ Can stitch anonymous → identified user sessions
+
+### How Consent is Detected
+
+The backend reads consent from **two sources** (in order):
+
+1. **`X-Tracking-Consent` header**: Set by frontend for server actions
+   - Value: `"granted"` or `"denied"`
+   - Used by: Server-side API routes, form submissions
+
+2. **`cookie-consent` cookie** (fallback): Standard HTTP cookie
+   - Value: `"granted"` or `"denied"`
+   - Max-Age: 1 year
+   - SameSite: Lax
+   - Secure: true (production only)
+   - Used by: Browser automatically sends with requests
+
+**Default**: If neither present, consent = `false` (opt-in model, GDPR-compliant)
+
+### Frontend Implementation
+
+**Server Actions** (cannot access localStorage):
+```typescript
+// Always include X-Tracking-Consent header for server actions
+headers: {
+  'X-Tracking-Consent': consentGranted ? 'granted' : 'denied'
+}
+```
+
+**Client-Side State** (LocalStorage is fine!):
+- ✅ Store UI preferences in localStorage (liked snippets, theme, etc.)
+- ✅ Purely frontend state - NOT subject to GDPR tracking rules
+- ✅ Functional experience works regardless of consent
+- ✅ Server respects consent separately for analytics
+
+### Database Schema
+
+The `events` table supports nullable identity fields:
+
+```sql
+ALTER TABLE events 
+  ALTER COLUMN identity_type DROP NOT NULL,
+  ALTER COLUMN identity_value DROP NOT NULL;
+```
+
+**Queries:**
+- **Profile-linked events**: `WHERE identity_type IS NOT NULL AND identity_value IS NOT NULL`
+- **Anonymous aggregated**: `WHERE identity_type IS NULL`
+
+### Code Implementation
+
+**Middleware** (`src/middlewares/consent.ts`):
+```typescript
+// Reads consent from header OR cookie, sets c.get('hasConsent')
+// Default: false (opt-in)
+```
+
+**Event Storage** (`src/lib/db/events.ts`):
+```typescript
+// WITHOUT consent: Stores identity_type/identity_value as NULL
+// WITH consent: Stores full identity for user journey tracking
+insertEvent(supabase, event, options)
+```
+
+**Processors** (`src/handlers/processors/`):
+```typescript
+// FUNCTIONAL operations: Always execute (likes, copies)
+// ANALYTICS operations: Only with consent (notifications, event tracking)
+const hasConsent = event.traits?.hasConsent as boolean | undefined;
+if (hasConsent) {
+  // Send Telegram notification, enable personalization
+}
+```
+
+### Legal Justification
+
+- **Legitimate Interest**: Aggregated business metrics (page views, total likes)
+- **Functional Necessity**: Core features work without consent (like counts)
+- **GDPR Article 6(1)(f)**: Anonymous data is NOT personal data
+- **Explicit Consent**: Required for profiling, journey tracking, personalization
+
 ---
 
 # Code Organization
